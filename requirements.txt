@@ -1,0 +1,8 @@
+requests
+rich
+pyttsx3
+speechrecognition
+pyaudio
+wikipedia
+pywhatkit
+python-dotenv

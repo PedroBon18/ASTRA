@@ -1,0 +1,15 @@
+#  arquivos compilados do Python
+__pycache__/
+*.pyc
+
+# Serve para ignorar possiveis ambientes virtuais que eu crie no futuro
+.venv
+venv/
+env/
+
+# variáveis de ambiente (Segurança)
+.env
+
+# arquivos de sistema do Windows/Mac
+.DS_Store
+Thumbs.db
