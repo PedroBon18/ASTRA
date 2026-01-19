@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 import os
 from dotenv import load_dotenv
+from AppOpener import open as app_open
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT
@@ -223,6 +224,21 @@ def main():
             elif 'sair' in comando or 'desligar' in comando:
                 falar("Desligando sistemas.")
                 break
+
+            # ASTRA CONTROLADORA! Apartir desse momento ela tem o poder para abrir qualquer APP (ou jogo) dentro do meu computador
+            elif 'abrir' in comando:
+                try:
+                    
+                    nome_app = comando.replace('abrir', '').strip()
+                    
+                    falar(f"Abrindo {nome_app}...")
+                    
+                    
+                    app_open(nome_app, match_closest=True, output=False) 
+                    
+                except:
+                    falar(f"Não consegui abrir o {nome_app}.")
+                continue
 
             # Lógica da Astra com Ollama
             else:

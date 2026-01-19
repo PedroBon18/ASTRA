@@ -6,3 +6,4 @@ pyaudio
 wikipedia
 pywhatkit
 python-dotenv
+AppOpener
