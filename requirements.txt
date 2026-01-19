@@ -7,3 +7,8 @@ wikipedia
 pywhatkit
 python-dotenv
 AppOpener
+pycaw
+comtypes
+pyautogui
+screen_brightness_control
+winshell

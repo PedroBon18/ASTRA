@@ -9,8 +9,16 @@ from datetime import datetime, timedelta
 from rich.console import Console
 from rich.panel import Panel
 import os
+import re
 from dotenv import load_dotenv
 from AppOpener import open as app_open
+import pyautogui
+import screen_brightness_control as sbc
+from ctypes import cast, POINTER
+import comtypes
+from comtypes import CLSCTX_ALL
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+import winshell
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT
@@ -48,7 +56,47 @@ def falar(texto):
     engine.say(texto)
     engine.runAndWait()
 
-# # Sistema Anti-Alzaheimer e Lembretes
+# Astra o demônio do controle
+# Em hipótese alguma altere o código do volume! É gambiarra pura, nem eu mesmo sei como funciona. O Dio Brando morreu por muito menos!
+def mudar_volume(nivel):
+    try:
+
+        try:
+            comtypes.CoInitialize()
+        except:
+            pass
+        
+        
+        device = AudioUtilities.GetSpeakers()
+        
+        interface = device.EndpointVolume
+        
+        
+        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        
+        
+        vol_float = min(max(int(nivel) / 100, 0.0), 1.0)
+        volume.SetMasterVolumeLevelScalar(vol_float, None)
+        
+        return f"Volume ajustado para {nivel} por cento."
+    except Exception as e:
+        console.print(f"[red]Erro Volume:[/red] {e}")
+        return "Não consegui mexer no som."
+
+def mudar_brilho(nivel):
+    try:
+        sbc.set_brightness(int(nivel))
+        return f"Brilho ajustado para {nivel} por cento. Espero que não fique cego."
+    except:
+        return "Não consegui controlar o brilho do seu monitor."
+
+def tirar_print():
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    nome_arquivo = f"print_{timestamp}.png"
+    pyautogui.screenshot(nome_arquivo)
+    return f"Foto da tela capturada: {nome_arquivo}."    
+
+# Sistema Anti-Alzaheimer e Lembretes
 ARQUIVO_MEMORIA = "astra_memory.json"
 ARQUIVO_LEMBRETES = "astra_reminders.json"
 
@@ -198,6 +246,67 @@ def main():
                     falar("Não entendi o tempo. Tente: 'me lembre de X em 10 minutos'.")
                 continue
 
+            # COMANDOS DE HARDWARE 
+
+            if 'volume' in comando:
+                try:
+        
+                    numeros = re.findall(r'\d+', comando)
+                    
+                    if numeros:
+                        nivel = int(numeros[0])
+                        falar(mudar_volume(nivel))
+                    
+                    elif 'aumentar' in comando or 'sobe' in comando:
+                        pyautogui.press('volumeup')
+                        pyautogui.press('volumeup')
+                        falar("Aumentando.")
+                        
+                    elif 'diminuir' in comando or 'baixar' in comando:
+                        pyautogui.press('volumedown')
+                        pyautogui.press('volumedown')
+                        falar("Diminuindo.")
+                        
+                    elif 'mudo' in comando or 'mutar' in comando:
+                        pyautogui.press('volumemute')
+                        falar("Modo silêncio.")
+                    else:
+                        falar("Para quanto quer mudar o volume?")
+                except Exception as e:
+                    falar(f"Erro ao ajustar volume.")
+                    print(e) # Ajuda a ver o erro no terminal
+                continue
+
+            elif 'brilho' in comando:
+                try:
+                    numeros = [int(s) for s in comando.split() if s.isdigit()]
+                    if numeros:
+                        falar(mudar_brilho(numeros[0]))
+                except:
+                    falar("Não entendi o nível de brilho.")
+                continue
+
+            elif 'print' in comando or 'captura de tela' in comando:
+                falar(tirar_print())
+                continue
+
+            elif 'esvaziar lixeira' in comando:
+                try:
+                    winshell.recycle_bin().empty(confirm=False, show_progress=False, sound=True)
+                    falar("Lixeira esvaziada. Adeus, lixo digital.")
+                except:
+                    falar("A lixeira já está vazia ou deu erro.")
+                continue
+
+            elif 'bloquear' in comando and 'pc' in comando:
+                falar("Bloqueando estação de trabalho.")
+                os.system("rundll32.exe user32.dll,LockWorkStation")
+                continue
+
+            elif 'desligar' in comando and 'pc' in comando:
+                falar("Protocolo de encerramento iniciado. Boa noite, senhor.")
+                os.system("shutdown /s /t 10") 
+                break
             # Comandos especificos Reciclados da Sexta-Feira (Obrigado, meu eu de 26/04/2025! Sempre serei grato. Se inventarem a viagem no tempo para o passado, eu te agradecerei pessoalmente.)
             elif 'tocar' in comando or 'toque' in comando:
                 musica = comando.replace('tocar', '').replace('toque', '').strip()
