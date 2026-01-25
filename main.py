@@ -5,6 +5,7 @@ import pywhatkit
 import requests
 import json
 import time
+import base64
 from datetime import datetime, timedelta
 from rich.console import Console
 from rich.panel import Panel
@@ -21,7 +22,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import winshell
 
 # Importações da ASTRA
-from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT
+from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT, VISION_MODEL
 
 console = Console()
 engine = pyttsx3.init()
@@ -46,7 +47,6 @@ if not voz_encontrada:
 
 # Reciclando API´s da Sexta-Feira
 load_dotenv()
-
 OPENCAGE_KEY = os.getenv("OPENCAGE_KEY")
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -197,6 +197,71 @@ def cerebro_astra(prompt, context=None):
     except Exception as e:
         console.print(f"[red]Erro no cérebro:[/red] {e}")
         return "Estou com dor de cabeça (Erro de conexão).", context
+    
+    # Olho de Agamotto
+
+def analisar_tela(prompt_usuario):
+    falar("Analisando a tela... (Um momento)")
+    
+    caminho_img = "temp_vision.png"
+    
+    # 1. Print e Tratamento da Imagem
+    time.sleep(1.0) 
+    pyautogui.screenshot(caminho_img)
+    
+    if os.path.getsize(caminho_img) < 1000: return "Erro: O print saiu vazio."
+
+    try:
+        with open(caminho_img, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+    except: return "Erro ao processar imagem."
+    
+    # 2. PASSO A: O Moondream descreve em INGLÊS (Para garantir a precisão)
+    payload_visao = {
+        "model": VISION_MODEL,
+        "prompt": "Describe this image in detail. If there is text, read it.", 
+        "stream": False,
+        "images": [img_b64]
+    }
+    
+    descricao_ingles = ""
+    
+    try:
+        response = requests.post(OLLAMA_URL, json=payload_visao, timeout=90)
+        if response.status_code == 200:
+            descricao_ingles = response.json()["response"]
+            if os.path.exists(caminho_img): os.remove(caminho_img)
+        else:
+            return f"Erro na visão: {response.status_code}"
+    except Exception as e:
+        return f"O modelo de visão demorou demais ou falhou: {e}"
+
+    # 3. PASSO B: A Gemma traduz para PORTUGUÊS (JACKPOT!)
+    # Se o prompt do usuário for específico (ex: "tem algum erro?"), adicionamos isso na tradução
+    prompt_traducao = f"""
+    Traduza a seguinte descrição visual para o Português do Brasil de forma natural.
+    
+    Descrição Original (Inglês): {descricao_ingles}
+    
+    O usuário perguntou: {prompt_usuario if prompt_usuario else "O que é isso?"}
+    Responda a pergunta do usuário com base na descrição traduzida.
+    """
+
+    payload_traducao = {
+        "model": MODEL_NAME,
+        "prompt": prompt_traducao,
+        "stream": False
+    }
+
+    try:
+        falar("Traduzindo o que vi...")
+        response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=60)
+        if response_trad.status_code == 200:
+            return response_trad.json()["response"]
+        else:
+            return "Consegui ver (em inglês), mas falhei ao traduzir."
+    except:
+        return f"Vi isto: {descricao_ingles} (Falha na tradução)"
 
 # LOOP PRINCIPAL HÍBRIDO
 def main():
@@ -257,6 +322,26 @@ def main():
             elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
                 usar_voz = True
                 falar("Entendido. Ativando microfone.")
+                continue
+            
+            # Ativar O Olho de Agamotto
+            # Lista de palavras que ativam a visão
+            gatilhos_visao = ['veja isso', 'analise', 'o que é isso', 'leia isso', 'na minha tela', 'nesta tela', 'descreva a tela', 'que site é esse']
+            eh_comando_visao = any(g in comando for g in gatilhos_visao)
+
+            if 'modo chat' in comando or 'modo texto' in comando:
+                usar_voz = False; falar("Teclado ativado."); continue
+            elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
+                usar_voz = True; falar("Microfone ativado."); continue
+            
+            # COMANDO DE VISÃO EXPANDIDO
+            elif eh_comando_visao:
+                prompt_vision = comando
+                for g in gatilhos_visao: # Limpa o comando
+                    prompt_vision = prompt_vision.replace(g, '')
+                
+                resposta_visao = analisar_tela(prompt_vision.strip())
+                falar(resposta_visao)
                 continue
 
             # COMANDOS DE HARDWARE 
