@@ -198,53 +198,55 @@ def cerebro_astra(prompt, context=None):
         console.print(f"[red]Erro no cérebro:[/red] {e}")
         return "Estou com dor de cabeça (Erro de conexão).", context
 
-# LOOP PRINCIPAL
-
+# LOOP PRINCIPAL HÍBRIDO
 def main():
     rec = sr.Recognizer()
-    
-    # Carrega a memória (Correção da Amnésia da V0.0)
     context_chat = carregar_memoria()
     
-    console.print(Panel.fit("[bold green]ASTRA :: SISTEMA INTEGRADO[/bold green]"))
+    console.print(Panel.fit("[bold green]ASTRA :: SISTEMA HÍBRIDO[/bold green]"))
     
+    console.print("[yellow]Escolha o modo de operação:[/yellow]")
+    console.print("[1] Modo Voz (Microfone)")
+    console.print("[2] Modo Chat (Teclado)")
+    modo = input(">> ").strip()
+    
+    usar_voz = True
+    if modo == '2':
+        usar_voz = False
+        console.print("[green]Modo Chat ativado. Digite seus comandos.[/green]")
+    else:
+        console.print("[green]Modo Voz ativado. Fale quando quiser.[/green]")
+
     if context_chat:
         falar("Sistemas online. Memória restaurada.")
     else:
         falar("Sistemas online.")
 
     while True:
-        # 2. Checa lembretes antes de ouvir 
+        # Lembretes funcionam nos dois modos
         aviso = checar_lembretes()
         if aviso:
             falar(f"Com licença, senhor. Lembrete: {aviso}")
             time.sleep(1) 
 
-        try:
-            with sr.Microphone() as source:
-                console.print("[dim]Ouvindo ambiente... (Ctrl+C para parar)[/dim]")
-                rec.adjust_for_ambient_noise(source)
-                
-                # O timeout impede que ela fique surda esperando eternamente.
-                # Se ninguém falar nada em 5s, ela solta e checa os lembretes de novo.
-                audio = rec.listen(source, timeout=5, phrase_time_limit=5)
-            
-            # Transcrição por Google Speech Recognition - Gratuito (I'm sorry, brother, I'm out of money.)
-            comando = rec.recognize_google(audio, language='pt-BR').lower()
-            console.print(f"[yellow]Você disse:[/yellow] {comando}")
+        comando = ""
 
-            # Função Lembretes
-            if 'lembre' in comando and 'minutos' in comando:
+        try:
+            # CAPTURA DO COMANDO
+            if not usar_voz:
+                # MODO TEXTO
                 try:
-                    partes = comando.split()
-                    idx_min = partes.index('minutos')
-                    tempo = partes[idx_min - 1]
-                    tarefa = comando.replace(f"{tempo} minutos", "").replace("me lembre de", "").replace("em", "").strip()
-                    resposta = agendar_lembrete(tarefa, tempo)
-                    falar(resposta)
-                except:
-                    falar("Não entendi o tempo. Tente: 'me lembre de X em 10 minutos'.")
-                continue
+                    comando = input("\n[Você]: ").strip().lower()
+                    if not comando: continue 
+                except EOFError: break 
+            else:
+                # MODO VOZ
+                with sr.Microphone() as source:
+                    console.print("[dim]Ouvindo ambiente... (Ctrl+C para parar)[/dim]")
+                    rec.adjust_for_ambient_noise(source)
+                    audio = rec.listen(source, timeout=5, phrase_time_limit=5)
+                comando = rec.recognize_google(audio, language='pt-BR').lower()
+                console.print(f"[yellow]Você disse:[/yellow] {comando}")
 
             # COMANDOS DE HARDWARE 
 
@@ -274,7 +276,7 @@ def main():
                         falar("Para quanto quer mudar o volume?")
                 except Exception as e:
                     falar(f"Erro ao ajustar volume.")
-                    print(e) # Ajuda a ver o erro no terminal
+                    print(e)
                 continue
 
             elif 'brilho' in comando:
