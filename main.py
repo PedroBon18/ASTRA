@@ -248,6 +248,17 @@ def main():
                 comando = rec.recognize_google(audio, language='pt-BR').lower()
                 console.print(f"[yellow]Você disse:[/yellow] {comando}")
 
+            # COMANDOS DE TROCA DE MODO 
+            if 'modo chat' in comando or 'modo texto' in comando:
+                usar_voz = False
+                falar("Entendido. Ativando teclado.")
+                continue
+            
+            elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
+                usar_voz = True
+                falar("Entendido. Ativando microfone.")
+                continue
+
             # COMANDOS DE HARDWARE 
 
             if 'volume' in comando:
