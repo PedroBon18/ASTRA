@@ -60,20 +60,14 @@ def falar(texto):
 # Em hipótese alguma altere o código do volume! É gambiarra pura, nem eu mesmo sei como funciona. O Dio Brando morreu por muito menos!
 def mudar_volume(nivel):
     try:
-
         try:
             comtypes.CoInitialize()
         except:
             pass
         
-        
         device = AudioUtilities.GetSpeakers()
-        
         interface = device.EndpointVolume
-        
-        
         volume = cast(interface, POINTER(IAudioEndpointVolume))
-        
         
         vol_float = min(max(int(nivel) / 100, 0.0), 1.0)
         volume.SetMasterVolumeLevelScalar(vol_float, None)
@@ -104,8 +98,8 @@ def carregar_memoria():
     try:
         with open(ARQUIVO_MEMORIA, "r") as f:
             return json.load(f)
-    except FileNotFoundError:
-        return None 
+    except (FileNotFoundError, json.JSONDecodeError): # ela ignora se o arquivo estiver corrompido!
+        return None
 
 def salvar_memoria(context):
     with open(ARQUIVO_MEMORIA, "w") as f:
@@ -175,6 +169,11 @@ def obter_clima(cidade):
     except:
         return "Erro ao verificar o clima."
 
+# === FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek) ===
+def limpar_pensamento(texto):
+    """Remove o bloco <think> gerado pelo DeepSeek para a Astra não falar sozinha."""
+    return re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL).strip()
+
 # O Cérebro da Astra/Ollama
 def cerebro_astra(prompt, context=None):
     payload = {
@@ -188,18 +187,18 @@ def cerebro_astra(prompt, context=None):
         response = requests.post(OLLAMA_URL, json=payload)
         data = response.json()
         
-        
         novo_contexto = data.get("context")
         salvar_memoria(novo_contexto)
         
-        return data["response"], novo_contexto 
+        # Filtra a resposta antes de devolver (O segredo do R1:8b)
+        resposta_limpa = limpar_pensamento(data["response"])
+        return resposta_limpa, novo_contexto 
         
     except Exception as e:
         console.print(f"[red]Erro no cérebro:[/red] {e}")
         return "Estou com dor de cabeça (Erro de conexão).", context
     
-    # Olho de Agamotto
-
+# Olho de Agamotto
 def analisar_tela(prompt_usuario):
     falar("Analisando a tela... (Um momento)")
     
@@ -236,10 +235,9 @@ def analisar_tela(prompt_usuario):
     except Exception as e:
         return f"O modelo de visão demorou demais ou falhou: {e}"
 
-    # 3. PASSO B: A Gemma traduz para PORTUGUÊS (JACKPOT!)
-    # Se o prompt do usuário for específico (ex: "tem algum erro?"), adicionamos isso na tradução
+    # 3. PASSO B: O DeepSeek traduz para PORTUGUÊS (JACKPOT!)
     prompt_traducao = f"""
-    Traduza a seguinte descrição visual para o Português do Brasil de forma natural.
+    Aja como um assistente. Traduza a seguinte descrição visual para o Português do Brasil de forma natural.
     
     Descrição Original (Inglês): {descricao_ingles}
     
@@ -254,10 +252,11 @@ def analisar_tela(prompt_usuario):
     }
 
     try:
-        falar("Traduzindo o que vi...")
+        falar("Processando a imagem com a lógica avançada...")
         response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=60)
         if response_trad.status_code == 200:
-            return response_trad.json()["response"]
+            # Filtra o pensamento da tradução também!
+            return limpar_pensamento(response_trad.json()["response"])
         else:
             return "Consegui ver (em inglês), mas falhei ao traduzir."
     except:
@@ -268,7 +267,7 @@ def main():
     rec = sr.Recognizer()
     context_chat = carregar_memoria()
     
-    console.print(Panel.fit("[bold green]ASTRA :: SISTEMA HÍBRIDO[/bold green]"))
+    console.print(Panel.fit("[bold green]ASTRA V0.6 :: MENTE ANALÍTICA (DeepSeek)[/bold green]"))
     
     console.print("[yellow]Escolha o modo de operação:[/yellow]")
     console.print("[1] Modo Voz (Microfone)")
@@ -325,17 +324,11 @@ def main():
                 continue
             
             # Ativar O Olho de Agamotto
-            # Lista de palavras que ativam a visão
             gatilhos_visao = ['veja isso', 'analise', 'o que é isso', 'leia isso', 'na minha tela', 'nesta tela', 'descreva a tela', 'que site é esse']
             eh_comando_visao = any(g in comando for g in gatilhos_visao)
-
-            if 'modo chat' in comando or 'modo texto' in comando:
-                usar_voz = False; falar("Teclado ativado."); continue
-            elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
-                usar_voz = True; falar("Microfone ativado."); continue
             
             # COMANDO DE VISÃO EXPANDIDO
-            elif eh_comando_visao:
+            if eh_comando_visao:
                 prompt_vision = comando
                 for g in gatilhos_visao: # Limpa o comando
                     prompt_vision = prompt_vision.replace(g, '')
@@ -348,7 +341,6 @@ def main():
 
             if 'volume' in comando:
                 try:
-        
                     numeros = re.findall(r'\d+', comando)
                     
                     if numeros:
@@ -405,6 +397,7 @@ def main():
                 falar("Protocolo de encerramento iniciado. Boa noite, senhor.")
                 os.system("shutdown /s /t 10") 
                 break
+
             # Comandos especificos Reciclados da Sexta-Feira (Obrigado, meu eu de 26/04/2025! Sempre serei grato. Se inventarem a viagem no tempo para o passado, eu te agradecerei pessoalmente.)
             elif 'tocar' in comando or 'toque' in comando:
                 musica = comando.replace('tocar', '').replace('toque', '').strip()
@@ -435,14 +428,9 @@ def main():
             # ASTRA CONTROLADORA! Apartir desse momento ela tem o poder para abrir qualquer APP (ou jogo) dentro do meu computador
             elif 'abrir' in comando:
                 try:
-                    
                     nome_app = comando.replace('abrir', '').strip()
-                    
                     falar(f"Abrindo {nome_app}...")
-                    
-                    
                     app_open(nome_app, match_closest=True, output=False) 
-                    
                 except:
                     falar(f"Não consegui abrir o {nome_app}.")
                 continue
