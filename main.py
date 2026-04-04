@@ -20,6 +20,7 @@ import comtypes
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import winshell
+from ddgs import DDGS
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT, VISION_MODEL
@@ -168,8 +169,38 @@ def obter_clima(cidade):
         return f"A temperatura em {cidade} é de {temp} graus."
     except:
         return "Erro ao verificar o clima."
+    
+def pesquisa_inteligente(termo):
+    falar(f"Buscando informações na rede sobre {termo}...")
+    try:
+        # region='wt-wt' (Busca no mundo todo) e max_results=5 (Mais contexto)
+        resultados = DDGS().text(termo, region='wt-wt', max_results=5)
+        
+        if not resultados:
+            return "Não encontrei nada na internet sobre isso, senhor."
+        
+        contexto_web = "Resultados da Web:\n"
+        for r in resultados:
+            contexto_web += f"- {r['title']}: {r['body']}\n"
+        
+        # Prompt agressivo (O DeepSeek tem mania de achar que sabe de tudo, aqui eu obrigo ele a ler a pesquisa)
+        prompt = f"""
+        Você é a assistente Astra. O usuário fez a seguinte pesquisa: '{termo}'.
+        
+        Você DEVE basear sua resposta ESTRITAMENTE nos Resumos da Web abaixo. 
+        Sintetize as informações de forma natural e direta. Se os resumos não falarem sobre o assunto, admita que não encontrou dados suficientes, não invente nada.
+        
+        {contexto_web}
+        """
+        
+        resposta, _ = cerebro_astra(prompt)
+        return resposta
+        
+    except Exception as e:
+        console.print(f"[red]Erro na Web:[/red] {e}")
+        return "Minha conexão com a rede falhou. A internet pode ter caído ou o provedor cortou nosso acesso."
 
-# === FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek) ===
+# FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek)
 def limpar_pensamento(texto):
     """Remove o bloco <think> gerado pelo DeepSeek para a Astra não falar sozinha."""
     return re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL).strip()
@@ -267,7 +298,7 @@ def main():
     rec = sr.Recognizer()
     context_chat = carregar_memoria()
     
-    console.print(Panel.fit("[bold green]ASTRA V0.6 :: MENTE ANALÍTICA (DeepSeek)[/bold green]"))
+    console.print(Panel.fit("[bold green]ASTRA: O Demônio Cibernético[/bold green]"))
     
     console.print("[yellow]Escolha o modo de operação:[/yellow]")
     console.print("[1] Modo Voz (Microfone)")
@@ -399,6 +430,7 @@ def main():
                 break
 
             # Comandos especificos Reciclados da Sexta-Feira (Obrigado, meu eu de 26/04/2025! Sempre serei grato. Se inventarem a viagem no tempo para o passado, eu te agradecerei pessoalmente.)
+            # melhorando mecanismos de busca da Sexta-Feira (04/04/2026)
             elif 'tocar' in comando or 'toque' in comando:
                 musica = comando.replace('tocar', '').replace('toque', '').strip()
                 falar(f"Tocando {musica}.")
@@ -411,14 +443,19 @@ def main():
                 falar(relatorio)
                 continue
 
-            elif 'pesquisar' in comando or 'quem é' in comando:
-                termo = comando.replace('pesquisar', '').replace('quem é', '').strip()
-                wikipedia.set_lang('pt')
-                try:
-                    resumo = wikipedia.summary(termo, sentences=2)
-                    falar(resumo)
-                except:
-                    falar("Não encontrei nada na wiki.")
+            gatilhos_busca = ['pesquise', 'pesquisar', 'pesquisa', 'busque', 'buscar', 'quem é', 'o que é']
+            eh_comando_busca = any(g in comando for g in gatilhos_busca)
+
+            if eh_comando_busca:
+                termo = comando
+                # Limpa todas as palavras de gatilho para sobrar só o assunto
+                for g in gatilhos_busca:
+                    termo = termo.replace(g, '')
+                # Limpa o nome dela e pontuações
+                termo = termo.replace('astra', '').replace(',', '').strip()
+                
+                resposta_web = pesquisa_inteligente(termo)
+                falar(resposta_web)
                 continue
 
             elif 'sair' in comando or 'desligar' in comando:
