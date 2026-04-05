@@ -21,6 +21,7 @@ from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import winshell
 from ddgs import DDGS
+import PyPDF2
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT, VISION_MODEL
@@ -216,6 +217,60 @@ def pesquisa_inteligente(termo):
     except Exception as e:
         console.print(f"[red]Erro na Web:[/red] {e}")
         return "Minha conexão com a rede falhou. A internet pode ter caído ou o provedor cortou nosso acesso."
+    
+# O GRANDE SÁBIO (Leitura de PDFs)
+def estudar_pdf(nome_arquivo, pergunta_usuario="Faça um resumo dos pontos principais deste documento."):
+    # Mapeia o caminho exato para C:\Users\fulano\Documents\PDFs
+    pasta_pdfs = os.path.join(winshell.my_documents(), "PDFs")
+    
+    falar(f"Procurando o PDF '{nome_arquivo}' na sua pasta de Documentos...")
+    
+    # Se a pasta "PDFs" não existir, a Astra cria ela na hora!
+    if not os.path.exists(pasta_pdfs):
+        os.makedirs(pasta_pdfs)
+        return "A pasta 'PDFs' não existia nos seus Documentos. Acabei de criá-la para você. Mova seus arquivos para lá e me chame de novo."
+
+    caminho_pdf = None
+
+    # Varre apenas a pasta Documents\PDFs
+    for arquivo in os.listdir(pasta_pdfs):
+        if nome_arquivo in arquivo.lower() and arquivo.endswith('.pdf'):
+            caminho_pdf = os.path.join(pasta_pdfs, arquivo)
+            break
+
+    if not caminho_pdf:
+        return f"Não encontrei nenhum PDF chamado '{nome_arquivo}' na pasta Documentos\\PDFs. Tem certeza de que o nome está certo?"
+
+    falar("Documento encontrado. Absorvendo conhecimento... (Isso pode exigir um pouco da placa de vídeo)")
+    
+    texto_extraido = ""
+    try:
+        with open(caminho_pdf, 'rb') as f:
+            leitor = PyPDF2.PdfReader(f)
+            # Lê as primeiras 5 páginas (Proteção para não fritar minha placa de video assim como o Dio fez com o Danny)
+            limite_paginas = min(len(leitor.pages), 5)
+            for i in range(limite_paginas):
+                texto_extraido += leitor.pages[i].extract_text() + "\n"
+    except Exception as e:
+        return f"Erro ao tentar ler o PDF: {e}"
+
+    if not texto_extraido.strip():
+        return "O documento parece estar vazio ou é apenas um monte de imagens escaneadas sem texto."
+
+    # Prompt agressivo para o DeepSeek não inventar informações fora do PDF
+    prompt = f"""
+    Você é a assistente Astra. O usuário pediu para você analisar um documento da faculdade.
+    
+    TEXTO DO DOCUMENTO (Páginas iniciais):
+    {texto_extraido}
+    
+    PEDIDO DO USUÁRIO: {pergunta_usuario}
+    
+    Responda em Português, seja direto e baseie-se APENAS no texto fornecido. Se a resposta não estiver no texto, diga que o documento não menciona isso.
+    """
+    
+    resposta, _ = cerebro_astra(prompt)
+    return resposta
 
 # FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek)
 def limpar_pensamento(texto):
@@ -274,7 +329,8 @@ def analisar_tela(prompt_usuario):
     descricao_ingles = ""
     
     try:
-        response = requests.post(OLLAMA_URL, json=payload_visao, timeout=90)
+        # TIMEOUT AUMENTADO PARA 180 SEGUNDOS (Para a RTX 2060 não morrer no swap)
+        response = requests.post(OLLAMA_URL, json=payload_visao, timeout=180)
         if response.status_code == 200:
             descricao_ingles = response.json()["response"]
             if os.path.exists(caminho_img): os.remove(caminho_img)
@@ -301,7 +357,7 @@ def analisar_tela(prompt_usuario):
 
     try:
         falar("Processando a imagem com a lógica avançada...")
-        response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=60)
+        response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=180)
         if response_trad.status_code == 200:
             # Filtra o pensamento da tradução também!
             return limpar_pensamento(response_trad.json()["response"])
@@ -341,6 +397,11 @@ def main():
             falar(f"Com licença, senhor. Lembrete: {aviso}")
             time.sleep(1) 
 
+        # As palavras mágicas da Astra agrupadas no lugar certo para evitar Erro de Sintaxe!
+        gatilhos_pdf = ['ler pdf', 'estudar documento', 'analisar documento', 'leia o documento', 'leia o pdf', 'analise o pdf', 'analise o documento', 'resuma o documento', 'resumo do pdf']
+        gatilhos_visao = ['veja isso', 'analise', 'o que é isso', 'leia isso', 'na minha tela', 'nesta tela', 'descreva a tela', 'que site é esse']
+        gatilhos_busca = ['pesquise', 'pesquisar', 'pesquisa', 'busque', 'buscar', 'quem é', 'o que é']
+
         comando = ""
 
         try:
@@ -371,12 +432,27 @@ def main():
                 falar("Entendido. Ativando microfone.")
                 continue
             
-            # Ativar O Olho de Agamotto
-            gatilhos_visao = ['veja isso', 'analise', 'o que é isso', 'leia isso', 'na minha tela', 'nesta tela', 'descreva a tela', 'que site é esse']
-            eh_comando_visao = any(g in comando for g in gatilhos_visao)
+            # GATILHO UNIVERSITÁRIO (V0.9.3 - O Grande Sábio blindado)
+            elif any(g in comando for g in gatilhos_pdf):
+                comando_limpo = comando
+                # Limpa os gatilhos da frase
+                for g in gatilhos_pdf:
+                    comando_limpo = comando_limpo.replace(g, '')
+                
+                # Limpa "sujeiras" como a extensão .pdf, vírgulas e a palavra resuma
+                comando_limpo = comando_limpo.replace('.pdf', '').replace('e resuma', '').replace('resuma', '').replace('astra', '').replace(',', '').strip()
+                
+                # Se sobrar nada, é porque você não falou o nome do arquivo
+                if not comando_limpo:
+                    falar("Qual é o nome do PDF que está na sua pasta de Documentos?")
+                    continue
+                
+                resposta_pdf = estudar_pdf(comando_limpo)
+                falar(resposta_pdf)
+                continue
             
-            # COMANDO DE VISÃO EXPANDIDO
-            if eh_comando_visao:
+            # Ativar O Olho de Agamotto (Agora com 180s de timeout)
+            elif any(g in comando for g in gatilhos_visao):
                 prompt_vision = comando
                 for g in gatilhos_visao: # Limpa o comando
                     prompt_vision = prompt_vision.replace(g, '')
@@ -385,13 +461,13 @@ def main():
                 falar(resposta_visao)
                 continue
 
-            # GATILHO DO RADAR (V0.8) - Escaneando sem surtar o DeepSeek
+            # GATILHO DO RADAR Escaneando sem surtar o DeepSeek
             elif 'escanear' in comando or 'mapear' in comando:
                 falar(escanear_sistema())
                 continue
 
             # COMANDOS DE HARDWARE 
-            if 'volume' in comando:
+            elif 'volume' in comando:
                 try:
                     numeros = re.findall(r'\d+', comando)
                     
@@ -464,10 +540,7 @@ def main():
                 falar(relatorio)
                 continue
 
-            gatilhos_busca = ['pesquise', 'pesquisar', 'pesquisa', 'busque', 'buscar', 'quem é', 'o que é']
-            eh_comando_busca = any(g in comando for g in gatilhos_busca)
-
-            if eh_comando_busca:
+            elif any(g in comando for g in gatilhos_busca):
                 termo = comando
                 # Limpa todas as palavras de gatilho para sobrar só o assunto
                 for g in gatilhos_busca:

@@ -14,3 +14,4 @@ screen_brightness_control
 winshell
 customtkinter
 duckduckgo-search
+PyPDF2
