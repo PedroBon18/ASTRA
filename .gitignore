@@ -13,3 +13,6 @@ env/
 # arquivos de sistema do Windows/Mac
 .DS_Store
 Thumbs.db
+
+# Arquivos de memória e dados dinâmicos da Astra (Privacidade Absoluta)
+*.json
