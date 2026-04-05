@@ -147,6 +147,28 @@ def checar_lembretes():
             
     return lembrete_ativo
 
+# PROTOCOLO RADAR (Mapeamento de Apps e Jogos)
+ARQUIVO_APPS = "astra_apps.json"
+
+def escanear_sistema():
+    falar("Iniciando varredura da Área de Trabalho. Buscando executáveis e jogos...")
+    desktop = winshell.desktop()
+    apps_encontrados = {}
+    
+    try:
+        for arquivo in os.listdir(desktop):
+            if arquivo.endswith(".lnk") or arquivo.endswith(".url"):
+                nome_limpo = arquivo.replace(".lnk", "").replace(".url", "").lower().strip()
+                caminho_completo = os.path.join(desktop, arquivo)
+                apps_encontrados[nome_limpo] = caminho_completo
+                
+        with open(ARQUIVO_APPS, "w", encoding="utf-8") as f:
+            json.dump(apps_encontrados, f, indent=4)
+            
+        return f"Varredura concluída. Mapeei {len(apps_encontrados)} aplicativos na sua Área de Trabalho."
+    except Exception as e:
+        return f"Erro ao escanear o sistema: {e}"
+
 # Reciclando codigo de clima da Sexta-Feira 
 def obter_lat_long(cidade):
     url = f"https://api.opencagedata.com/geocode/v1/json?q={cidade}&key={OPENCAGE_KEY}&language=pt&pretty=1"
@@ -173,7 +195,6 @@ def obter_clima(cidade):
 def pesquisa_inteligente(termo):
     falar(f"Buscando informações na rede sobre {termo}...")
     try:
-        # region='wt-wt' (Busca no mundo todo) e max_results=5 (Mais contexto)
         resultados = DDGS().text(termo, region='wt-wt', max_results=5)
         
         if not resultados:
@@ -183,16 +204,12 @@ def pesquisa_inteligente(termo):
         for r in resultados:
             contexto_web += f"- {r['title']}: {r['body']}\n"
         
-        # Prompt agressivo (O DeepSeek tem mania de achar que sabe de tudo, aqui eu obrigo ele a ler a pesquisa)
         prompt = f"""
         Você é a assistente Astra. O usuário fez a seguinte pesquisa: '{termo}'.
-        
         Você DEVE basear sua resposta ESTRITAMENTE nos Resumos da Web abaixo. 
         Sintetize as informações de forma natural e direta. Se os resumos não falarem sobre o assunto, admita que não encontrou dados suficientes, não invente nada.
-        
         {contexto_web}
         """
-        
         resposta, _ = cerebro_astra(prompt)
         return resposta
         
@@ -368,8 +385,12 @@ def main():
                 falar(resposta_visao)
                 continue
 
-            # COMANDOS DE HARDWARE 
+            # GATILHO DO RADAR (V0.8) - Escaneando sem surtar o DeepSeek
+            elif 'escanear' in comando or 'mapear' in comando:
+                falar(escanear_sistema())
+                continue
 
+            # COMANDOS DE HARDWARE 
             if 'volume' in comando:
                 try:
                     numeros = re.findall(r'\d+', comando)
@@ -464,12 +485,29 @@ def main():
 
             # ASTRA CONTROLADORA! Apartir desse momento ela tem o poder para abrir qualquer APP (ou jogo) dentro do meu computador
             elif 'abrir' in comando:
+                nome_app = comando.replace('abrir', '').strip()
+                falar(f"Iniciando {nome_app}...")
+                
+                # 1. Tenta abrir pela memória do "Protocolo Radar" (Para jogos da Steam e atalhos da Área de Trabalho)
+                abriu_customizado = False
                 try:
-                    nome_app = comando.replace('abrir', '').strip()
-                    falar(f"Abrindo {nome_app}...")
-                    app_open(nome_app, match_closest=True, output=False) 
+                    with open(ARQUIVO_APPS, "r", encoding="utf-8") as f:
+                        apps_mapeados = json.load(f)
+                        
+                    for nome_salvo, caminho in apps_mapeados.items():
+                        if nome_app in nome_salvo or nome_salvo in nome_app:
+                            os.startfile(caminho) # Comando mágico do Windows que executa qualquer coisa
+                            abriu_customizado = True
+                            break
                 except:
-                    falar(f"Não consegui abrir o {nome_app}.")
+                    pass # Se o arquivo não existir, segue a vida
+                
+                # 2. Plano B: Se não estava na Área de Trabalho, usa o AppOpener (Para apps nativos do Windows)
+                if not abriu_customizado:
+                    try:
+                        app_open(nome_app, match_closest=True, output=False) 
+                    except:
+                        falar(f"Não consegui encontrar o aplicativo {nome_app} no radar.")
                 continue
 
             # Lógica da Astra com Ollama
