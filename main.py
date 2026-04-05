@@ -22,6 +22,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import winshell
 from ddgs import DDGS
 import PyPDF2
+import psutil
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT, VISION_MODEL
@@ -313,6 +314,39 @@ def rastreador_otaku(nome_anime):
         return resposta
     except Exception as e:
         return f"O Rastreador Otaku superaqueceu e explodiu! O erro foi: {e}"
+    
+    # O SENTIDO ARANHA DE HARDWARE (Monitorização psutil)
+def relatorio_hardware():
+    falar("A ler os sensores internos do nosso lindo bebé...")
+    
+    cpu_uso = psutil.cpu_percent(interval=1)
+    ram_uso = psutil.virtual_memory().percent
+    
+    # Magia Negra: Descobrir o processo vilão que está a comer a RAM
+    processo_fome = "Nenhum"
+    max_ram = 0
+    for proc in psutil.process_iter(['name', 'memory_percent']):
+        try:
+            if proc.info['memory_percent'] is not None and proc.info['memory_percent'] > max_ram:
+                max_ram = proc.info['memory_percent']
+                processo_fome = proc.info['name']
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+            
+    # O prompt que injeta a loucura da Mei Hatsume nos dados puros
+    prompt = f"""
+    <role>Astra</role>
+    <directive>
+    Você ativou sua invenção 'Sentido Aranha' para verificar a saúde do computador (seu bebê).
+    - CPU está em {cpu_uso}% de uso.
+    - RAM está em {ram_uso}% de uso.
+    - O programa que mais está devorando a memória no momento é o '{processo_fome}' (consumindo {max_ram:.1f}% da RAM sozinho).
+    
+    Faça um diagnóstico caótico, rápido e cheio de atitude! Se o uso estiver alto, reclame que o '{processo_fome}' está a destruir a nossa obra-prima. Se estiver baixo, comemore o quão eficiente o hardware está rodando.
+    </directive>
+    """
+    resposta, _ = cerebro_astra(prompt)
+    return resposta
 
 # FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek)
 def limpar_pensamento(texto):
@@ -467,6 +501,12 @@ def main():
             elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
                 usar_voz = True
                 falar("Entendido. Ativando microfone.")
+                continue
+
+            # GATILHO SENTIDO ARANHA (Hardware V0.8.5)
+            gatilhos_hardware = ['status do sistema', 'como está o hardware', 'sentido aranha', 'monitorar sistema', 'diagnóstico', 'como está o pc']
+            if any(g in comando for g in gatilhos_hardware):
+                falar(relatorio_hardware())
                 continue
             
             # GATILHO OTAKU (V0.8.3)
