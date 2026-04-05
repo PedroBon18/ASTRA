@@ -206,9 +206,10 @@ def pesquisa_inteligente(termo):
             contexto_web += f"- {r['title']}: {r['body']}\n"
         
         prompt = f"""
-        Você é a assistente Astra. O usuário fez a seguinte pesquisa: '{termo}'.
-        Você DEVE basear sua resposta ESTRITAMENTE nos Resumos da Web abaixo. 
-        Sintetize as informações de forma natural e direta. Se os resumos não falarem sobre o assunto, admita que não encontrou dados suficientes, não invente nada.
+        <role>Astra</role>
+        <directive>
+        Sintetize as informações da Web abaixo de forma direta e sem preâmbulos. Se os resumos não falarem sobre o assunto, admita que não encontrou dados suficientes, não invente nada.
+        </directive>
         {contexto_web}
         """
         resposta, _ = cerebro_astra(prompt)
@@ -217,7 +218,7 @@ def pesquisa_inteligente(termo):
     except Exception as e:
         console.print(f"[red]Erro na Web:[/red] {e}")
         return "Minha conexão com a rede falhou. A internet pode ter caído ou o provedor cortou nosso acesso."
-    
+
 # O GRANDE SÁBIO (Leitura de PDFs)
 def estudar_pdf(nome_arquivo, pergunta_usuario="Faça um resumo dos pontos principais deste documento."):
     # Mapeia o caminho exato para C:\Users\fulano\Documents\PDFs
@@ -247,7 +248,7 @@ def estudar_pdf(nome_arquivo, pergunta_usuario="Faça um resumo dos pontos princ
     try:
         with open(caminho_pdf, 'rb') as f:
             leitor = PyPDF2.PdfReader(f)
-            # Lê as primeiras 5 páginas (Proteção para não fritar minha placa de video assim como o Dio fez com o Danny)
+            # Lê as primeiras 5 páginas (Proteção para não fritar minha placa de video)
             limite_paginas = min(len(leitor.pages), 5)
             for i in range(limite_paginas):
                 texto_extraido += leitor.pages[i].extract_text() + "\n"
@@ -259,18 +260,59 @@ def estudar_pdf(nome_arquivo, pergunta_usuario="Faça um resumo dos pontos princ
 
     # Prompt agressivo para o DeepSeek não inventar informações fora do PDF
     prompt = f"""
-    Você é a assistente Astra. O usuário pediu para você analisar um documento da faculdade.
-    
-    TEXTO DO DOCUMENTO (Páginas iniciais):
-    {texto_extraido}
-    
+    <role>Astra</role>
+    <directive>
+    Responda em Português, seja direto e baseie-se APENAS no texto do documento. Se a resposta não estiver no texto, diga que o documento não menciona isso.
     PEDIDO DO USUÁRIO: {pergunta_usuario}
-    
-    Responda em Português, seja direto e baseie-se APENAS no texto fornecido. Se a resposta não estiver no texto, diga que o documento não menciona isso.
+    </directive>
+    <document_text>
+    {texto_extraido}
+    </document_text>
     """
     
     resposta, _ = cerebro_astra(prompt)
     return resposta
+
+# O RASTREADOR OTAKU (Integração Jikan/MyAnimeList) - COM CORREÇÃO DO CLOUDFLARE
+def rastreador_otaku(nome_anime):
+    falar(f"Ativando o Rastreador Otaku. Colocando '{nome_anime}' na mira...")
+    url = f"https://api.jikan.moe/v4/anime?q={nome_anime}&limit=1"
+    
+    try:
+        # A MÁGICA ESTÁ AQUI: Disfarce de Navegador para enganar o Cloudflare
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        r = requests.get(url, headers=headers, timeout=15).json()
+        
+        if not r.get("data"):
+            return f"Péssimas notícias! A base de dados não tem nenhum registro de '{nome_anime}'."
+        
+        anime = r["data"][0]
+        titulo = anime.get("title", "Desconhecido")
+        nota = anime.get("score", "Sem nota")
+        eps = anime.get("episodes", "?")
+        status = anime.get("status", "Desconhecido")
+        sinopse = anime.get("synopsis", "Sem sinopse.")
+        
+        # Encurralando a Astra no XML do Claude para ela ler os dados como a Mei Hatsume
+        prompt = f"""
+        <role>Astra</role>
+        <directive>
+        Você usou sua invenção 'Rastreador Otaku' e puxou os dados abaixo do MyAnimeList. 
+        Entregue as informações de forma absurdamente empolgada e orgulhosa do seu bebê (a invenção). 
+        Comente sobre a nota (Score), resuma a sinopse e faça uma analogia rápida de otaku.
+        </directive>
+        <anime_data>
+        Título: {titulo}
+        Nota: {nota}/10
+        Episódios: {eps}
+        Status: {status}
+        Sinopse Original (Inglês): {sinopse}
+        </anime_data>
+        """
+        resposta, _ = cerebro_astra(prompt)
+        return resposta
+    except Exception as e:
+        return f"O Rastreador Otaku superaqueceu e explodiu! O erro foi: {e}"
 
 # FILTRO DE CONSCIÊNCIA (Novo poder para calar a boca do DeepSeek)
 def limpar_pensamento(texto):
@@ -341,19 +383,13 @@ def analisar_tela(prompt_usuario):
 
     # 3. PASSO B: O DeepSeek traduz para PORTUGUÊS (JACKPOT!)
     prompt_traducao = f"""
-    Aja como um assistente. Traduza a seguinte descrição visual para o Português do Brasil de forma natural.
-    
-    Descrição Original (Inglês): {descricao_ingles}
-    
-    O usuário perguntou: {prompt_usuario if prompt_usuario else "O que é isso?"}
-    Responda a pergunta do usuário com base na descrição traduzida.
+    <role>Astra</role>
+    <directive>Traduza e interprete a descrição visual abaixo baseando-se na pergunta do usuário.</directive>
+    <visual_description>{descricao_ingles}</visual_description>
+    <user_question>{prompt_usuario if prompt_usuario else "O que é isso?"}</user_question>
     """
 
-    payload_traducao = {
-        "model": MODEL_NAME,
-        "prompt": prompt_traducao,
-        "stream": False
-    }
+    payload_traducao = {"model": MODEL_NAME, "prompt": prompt_traducao, "stream": False}
 
     try:
         falar("Processando a imagem com a lógica avançada...")
@@ -401,6 +437,7 @@ def main():
         gatilhos_pdf = ['ler pdf', 'estudar documento', 'analisar documento', 'leia o documento', 'leia o pdf', 'analise o pdf', 'analise o documento', 'resuma o documento', 'resumo do pdf']
         gatilhos_visao = ['veja isso', 'analise', 'o que é isso', 'leia isso', 'na minha tela', 'nesta tela', 'descreva a tela', 'que site é esse']
         gatilhos_busca = ['pesquise', 'pesquisar', 'pesquisa', 'busque', 'buscar', 'quem é', 'o que é']
+        gatilhos_anime = ['procurar anime', 'buscar anime', 'informações do anime', 'rastrear anime', 'sobre o anime']
 
         comando = ""
 
@@ -432,6 +469,20 @@ def main():
                 falar("Entendido. Ativando microfone.")
                 continue
             
+            # GATILHO OTAKU (V0.8.3)
+            elif any(g in comando for g in gatilhos_anime):
+                comando_limpo = comando
+                for g in gatilhos_anime:
+                    comando_limpo = comando_limpo.replace(g, '')
+                comando_limpo = comando_limpo.replace('astra', '').strip()
+                
+                if not comando_limpo:
+                    falar("Qual anime você quer que o Rastreador Otaku localize?")
+                    continue
+                
+                falar(rastreador_otaku(comando_limpo))
+                continue
+
             # GATILHO UNIVERSITÁRIO (V0.9.3 - O Grande Sábio blindado)
             elif any(g in comando for g in gatilhos_pdf):
                 comando_limpo = comando
@@ -470,91 +521,54 @@ def main():
             elif 'volume' in comando:
                 try:
                     numeros = re.findall(r'\d+', comando)
-                    
                     if numeros:
-                        nivel = int(numeros[0])
-                        falar(mudar_volume(nivel))
-                    
+                        falar(mudar_volume(int(numeros[0])))
                     elif 'aumentar' in comando or 'sobe' in comando:
-                        pyautogui.press('volumeup')
-                        pyautogui.press('volumeup')
-                        falar("Aumentando.")
-                        
+                        pyautogui.press('volumeup'); pyautogui.press('volumeup'); falar("Aumentando.")
                     elif 'diminuir' in comando or 'baixar' in comando:
-                        pyautogui.press('volumedown')
-                        pyautogui.press('volumedown')
-                        falar("Diminuindo.")
-                        
+                        pyautogui.press('volumedown'); pyautogui.press('volumedown'); falar("Diminuindo.")
                     elif 'mudo' in comando or 'mutar' in comando:
-                        pyautogui.press('volumemute')
-                        falar("Modo silêncio.")
-                    else:
-                        falar("Para quanto quer mudar o volume?")
+                        pyautogui.press('volumemute'); falar("Modo silêncio.")
                 except Exception as e:
-                    falar(f"Erro ao ajustar volume.")
-                    print(e)
+                    falar("Erro ao ajustar volume.")
                 continue
 
             elif 'brilho' in comando:
                 try:
                     numeros = [int(s) for s in comando.split() if s.isdigit()]
-                    if numeros:
-                        falar(mudar_brilho(numeros[0]))
-                except:
-                    falar("Não entendi o nível de brilho.")
+                    if numeros: falar(mudar_brilho(numeros[0]))
+                except: falar("Não entendi o nível de brilho.")
                 continue
 
-            elif 'print' in comando or 'captura de tela' in comando:
-                falar(tirar_print())
-                continue
-
+            elif 'print' in comando or 'captura de tela' in comando: falar(tirar_print()); continue
             elif 'esvaziar lixeira' in comando:
-                try:
-                    winshell.recycle_bin().empty(confirm=False, show_progress=False, sound=True)
-                    falar("Lixeira esvaziada. Adeus, lixo digital.")
-                except:
-                    falar("A lixeira já está vazia ou deu erro.")
+                try: winshell.recycle_bin().empty(confirm=False, show_progress=False, sound=True); falar("Lixeira esvaziada. Adeus, lixo digital.")
+                except: falar("A lixeira já está vazia ou deu erro.")
                 continue
 
-            elif 'bloquear' in comando and 'pc' in comando:
-                falar("Bloqueando estação de trabalho.")
-                os.system("rundll32.exe user32.dll,LockWorkStation")
-                continue
-
-            elif 'desligar' in comando and 'pc' in comando:
-                falar("Protocolo de encerramento iniciado. Boa noite, senhor.")
-                os.system("shutdown /s /t 10") 
-                break
+            elif 'bloquear' in comando and 'pc' in comando: falar("Bloqueando estação de trabalho."); os.system("rundll32.exe user32.dll,LockWorkStation"); continue
+            elif 'desligar' in comando and 'pc' in comando: falar("Protocolo de encerramento iniciado. Boa noite, senhor."); os.system("shutdown /s /t 10"); break
 
             # Comandos especificos Reciclados da Sexta-Feira (Obrigado, meu eu de 26/04/2025! Sempre serei grato. Se inventarem a viagem no tempo para o passado, eu te agradecerei pessoalmente.)
             # melhorando mecanismos de busca da Sexta-Feira (04/04/2026)
             elif 'tocar' in comando or 'toque' in comando:
                 musica = comando.replace('tocar', '').replace('toque', '').strip()
-                falar(f"Tocando {musica}.")
-                pywhatkit.playonyt(musica)
-                continue
+                falar(f"Tocando {musica}."); pywhatkit.playonyt(musica); continue
             
             elif 'clima' in comando:
                 cidade = comando.replace('clima', '').replace('em', '').replace('de', '').strip()
-                relatorio = obter_clima(cidade)
-                falar(relatorio)
-                continue
+                falar(obter_clima(cidade)); continue
 
             elif any(g in comando for g in gatilhos_busca):
                 termo = comando
                 # Limpa todas as palavras de gatilho para sobrar só o assunto
-                for g in gatilhos_busca:
-                    termo = termo.replace(g, '')
+                for g in gatilhos_busca: termo = termo.replace(g, '')
                 # Limpa o nome dela e pontuações
                 termo = termo.replace('astra', '').replace(',', '').strip()
-                
-                resposta_web = pesquisa_inteligente(termo)
-                falar(resposta_web)
+                falar(pesquisa_inteligente(termo))
                 continue
 
-            elif 'sair' in comando or 'desligar' in comando:
-                falar("Desligando sistemas.")
-                break
+            elif 'sair' in comando or 'desligar' in comando: falar("Desligando sistemas."); break
 
             # ASTRA CONTROLADORA! Apartir desse momento ela tem o poder para abrir qualquer APP (ou jogo) dentro do meu computador
             elif 'abrir' in comando:
@@ -566,21 +580,16 @@ def main():
                 try:
                     with open(ARQUIVO_APPS, "r", encoding="utf-8") as f:
                         apps_mapeados = json.load(f)
-                        
                     for nome_salvo, caminho in apps_mapeados.items():
                         if nome_app in nome_salvo or nome_salvo in nome_app:
                             os.startfile(caminho) # Comando mágico do Windows que executa qualquer coisa
-                            abriu_customizado = True
-                            break
-                except:
-                    pass # Se o arquivo não existir, segue a vida
+                            abriu_customizado = True; break
+                except: pass # Se o arquivo não existir, segue a vida
                 
                 # 2. Plano B: Se não estava na Área de Trabalho, usa o AppOpener (Para apps nativos do Windows)
                 if not abriu_customizado:
-                    try:
-                        app_open(nome_app, match_closest=True, output=False) 
-                    except:
-                        falar(f"Não consegui encontrar o aplicativo {nome_app} no radar.")
+                    try: app_open(nome_app, match_closest=True, output=False) 
+                    except: falar(f"Não consegui encontrar o aplicativo {nome_app} no radar.")
                 continue
 
             # Lógica da Astra com Ollama
@@ -589,14 +598,10 @@ def main():
                 falar(resposta)
 
         # Tratamento de Silêncio (Necessário para o timeout funcionar e ela checar lembretes)
-        except sr.WaitTimeoutError:
-            pass 
-        except sr.UnknownValueError:
-            pass 
-        except sr.RequestError:
-            falar("Minha audição (Google) está fora do ar.")
-        except KeyboardInterrupt:
-            break
+        except sr.WaitTimeoutError: pass 
+        except sr.UnknownValueError: pass 
+        except sr.RequestError: falar("Minha audição está fora do ar.")
+        except KeyboardInterrupt: break
 
 if __name__ == "__main__":
     main()
