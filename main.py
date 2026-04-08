@@ -524,6 +524,14 @@ def main():
 
     discord_thread = threading.Thread(target=iniciar_discord, daemon=True)
     discord_thread.start()
+
+    try:
+        import ctypes
+        # ES_CONTINUOUS = 0x80000000 | ES_SYSTEM_REQUIRED = 0x00000001
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
+        console.print("[bold blue][Sistema]: Protocolo Insônia ativado. O PC permanecerá acordado![/bold blue]")
+    except Exception as e:
+        console.print(f"[bold red]Falha no Protocolo Insônia:[/bold red] {e}")
     
     console.print(Panel.fit("[bold green]ASTRA: O Demônio Cibernético[/bold green]"))
     
