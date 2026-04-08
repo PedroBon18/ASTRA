@@ -16,3 +16,4 @@ customtkinter
 duckduckgo-search
 PyPDF2
 psutil
+discord.py

@@ -23,6 +23,9 @@ import winshell
 from ddgs import DDGS
 import PyPDF2
 import psutil
+import discord
+import asyncio
+import threading
 
 # Importações da ASTRA
 from config import OLLAMA_URL, MODEL_NAME, SYSTEM_PROMPT, VISION_MODEL
@@ -314,8 +317,66 @@ def rastreador_otaku(nome_anime):
         return resposta
     except Exception as e:
         return f"O Rastreador Otaku superaqueceu e explodiu! O erro foi: {e}"
+
+def iniciar_discord():
+    DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+    DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
     
-    # O SENTIDO ARANHA DE HARDWARE (Monitorização psutil)
+    if not DISCORD_TOKEN or DISCORD_TOKEN == "cole_o_token_gigante_aqui": 
+        console.print("[bold red][Discord] ERRO: O Token não foi configurado no arquivo .env![/bold red]")
+        return
+
+    intents = discord.Intents.default()
+    intents.message_content = True
+    client = discord.Client(intents=intents)
+
+    @client.event
+    async def on_ready():
+        console.print(f"[bold green][Discord]:[/bold green] Astra conectada com sucesso como {client.user}!")
+
+    @client.event
+    async def on_message(message):
+        if message.author == client.user:
+            return
+            
+        if DISCORD_CHANNEL_ID and str(message.channel.id) != DISCORD_CHANNEL_ID:
+            return
+
+        comando = message.content.lower()
+        console.print(f"[bold magenta][Discord]:[/bold magenta] {comando}")
+        
+        if comando == 'print' or comando == 'tela' or comando == 'ecrã':
+            async with message.channel.typing():
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                nome_ficheiro = f"print_discord_{timestamp}.png"
+                await asyncio.to_thread(pyautogui.screenshot, nome_ficheiro)
+                try:
+                    await message.channel.send(file=discord.File(nome_ficheiro))
+                    os.remove(nome_ficheiro)
+                except Exception as e:
+                    await message.channel.send("Minhas lentes embaçaram. Erro ao capturar a tela.")
+            return
+
+        async with message.channel.typing():
+            resposta, _ = await asyncio.to_thread(cerebro_astra, message.content, None)
+            for i in range(0, len(resposta), 2000):
+                await message.channel.send(resposta[i:i+2000])
+
+    try:
+        # Cria um novo event_loop para não colidir com outras threads
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        console.print("[yellow][Discord]: Iniciando ignição dos servidores...[/yellow]")
+        client.run(DISCORD_TOKEN)
+    except discord.errors.LoginFailure:
+        console.print("[bold red][Discord] ERRO CRÍTICO: O Token está incorreto![/bold red] Você provavelmente copiou o 'Client Secret' ou o 'Application ID'. Você precisa ir na aba 'Bot' e clicar em 'Reset Token' para pegar a chave verdadeira.")
+    except discord.errors.PrivilegedIntentsRequired:
+        console.print("[bold red][Discord] ERRO CRÍTICO: Permissão Negada![/bold red] Você esqueceu de ativar o 'Message Content Intent' na aba 'Bot' lá no portal do Discord.")
+    except Exception as e:
+        console.print(f"[bold red][Discord] O motor explodiu: {e}[/bold red]")
+
+# O SENTIDO ARANHA DE HARDWARE (Monitorização psutil)
 def relatorio_hardware():
     falar("A ler os sensores internos do nosso lindo bebé...")
     
@@ -440,6 +501,9 @@ def analisar_tela(prompt_usuario):
 def main():
     rec = sr.Recognizer()
     context_chat = carregar_memoria()
+
+    discord_thread = threading.Thread(target=iniciar_discord, daemon=True)
+    discord_thread.start()
     
     console.print(Panel.fit("[bold green]ASTRA: O Demônio Cibernético[/bold green]"))
     
