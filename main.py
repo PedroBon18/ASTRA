@@ -318,6 +318,7 @@ def rastreador_otaku(nome_anime):
     except Exception as e:
         return f"O Rastreador Otaku superaqueceu e explodiu! O erro foi: {e}"
 
+# Protocolo de Bolso
 def iniciar_discord():
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
@@ -355,6 +356,25 @@ def iniciar_discord():
                     os.remove(nome_ficheiro)
                 except Exception as e:
                     await message.channel.send("Minhas lentes embaçaram. Erro ao capturar a tela.")
+            return
+        
+        # O Catálogo de Invenções (Discord)
+        if 'gatilhos' in comando or 'suas funções' in comando:
+            async with message.channel.typing():
+                lista_discord = """
+                **🛠️ MANUAL DE INVENÇÕES DA ASTRA 🛠️**
+                🤖 `buscar anime [nome]`: Rastreador Otaku (MyAnimeList)
+                📚 `ler pdf [nome]`: O Grande Sábio (Lê PDFs locais)
+                🕷️ `sentido aranha` ou `status do sistema`: Monitora CPU e RAM
+                👁️ `analise a tela` ou `veja isso`: Olho de Agamotto (Visão)
+                📡 `escanear`: Mapeia a Área de Trabalho do mestre
+                🚀 `abrir [app]`: Inicia um programa no PC
+                📸 `print` ou `tela`: Envia um print do PC aqui pro Discord
+                🌦️ `clima em [cidade]`: Previsão do tempo
+                🎵 `tocar [música]`: Toca a música no YouTube
+                🔊 `volume [0-100]` / `brilho [0-100]`: Controle de hardware
+                """
+                await message.channel.send(lista_discord)
             return
 
         async with message.channel.typing():
@@ -565,6 +585,24 @@ def main():
             elif 'modo voz' in comando or 'modo audio' in comando or 'modo áudio' in comando:
                 usar_voz = True
                 falar("Entendido. Ativando microfone.")
+                continue
+
+            # O Catálogo de Invenções (Terminal/Voz)
+            elif 'gatilhos' in comando or 'suas funções' in comando:
+                lista_gatilhos = """
+                [cyan]buscar anime [nome]:[/cyan] Rastreador Otaku (MyAnimeList)
+                [cyan]ler pdf [nome]:[/cyan] O Grande Sábio (Lê PDFs locais)
+                [cyan]sentido aranha / status do sistema:[/cyan] Monitora CPU e RAM
+                [cyan]analise a tela / veja isso:[/cyan] Olho de Agamotto (Visão Computacional)
+                [cyan]escanear:[/cyan] Mapeia a Área de Trabalho e Jogos
+                [cyan]abrir [app]:[/cyan] Inicia um programa mapeado ou nativo
+                [cyan]print / captura de tela:[/cyan] Tira foto da tela local
+                [cyan]clima em [cidade]:[/cyan] Previsão meteorológica
+                [cyan]tocar [música]:[/cyan] Inicia o YouTube no navegador
+                [cyan]volume / brilho [nível]:[/cyan] Ajuste de Hardware
+                """
+                console.print(Panel(lista_gatilhos, title="[bold magenta]🛠️ MANUAL DE INVENÇÕES DA ASTRA 🛠️[/bold magenta]"))
+                falar("Prontinho! Acabei de exibir o manual com todos os nossos lindos bebês na sua tela.")
                 continue
 
             # GATILHO SENTIDO ARANHA (Hardware V0.8.5)
