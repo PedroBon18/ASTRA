@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 # Importações internas do laboratório
 from Astra_Core.voz import console
-from Astra_Core.cerebro import cerebro_astra
+from Astra_Core.cerebro import cerebro_astra, analisar_imagem_direta
 
 load_dotenv()
 
@@ -35,6 +35,39 @@ def iniciar_discord():
 
         comando = message.content.lower()
         console.print(f"[bold magenta][Discord]:[/bold magenta] {comando}")
+
+        # O RECEPTOR UNIVERSAL DE ANEXOS 
+        if message.attachments:
+            for attachment in message.attachments:
+                nome_temp = f"temp_discord_{attachment.filename}"
+                await attachment.save(nome_temp)
+                
+                # Se for imagem, aciona o Olho de Agamotto Modificado
+                if attachment.content_type and attachment.content_type.startswith('image/'):
+                    async with message.channel.typing():
+                        resposta_visao = await asyncio.to_thread(analisar_imagem_direta, nome_temp, comando)
+                        await message.channel.send(resposta_visao)
+                
+                # Se for código ou texto puro (.py, .txt, .json, .md)
+                elif attachment.filename.endswith(('.txt', '.py', '.json', '.md', '.csv')):
+                    async with message.channel.typing():
+                        try:
+                            with open(nome_temp, 'r', encoding='utf-8') as f:
+                                conteudo = f.read()
+                            prompt_arq = f"Li este arquivo ({attachment.filename}). O comando do criador é: '{comando}'. Conteúdo do arquivo:\n{conteudo}"
+                            resposta, _ = await asyncio.to_thread(cerebro_astra, prompt_arq, None)
+                            
+                            for i in range(0, len(resposta), 2000):
+                                await message.channel.send(resposta[i:i+2000])
+                        except Exception as e:
+                            await message.channel.send(f"Explosão ao ler o texto: {e}")
+                else:
+                    await message.channel.send("Recebi o arquivo, mas não tenho ferramentas para abrir essa extensão ainda!")
+                
+                # Limpeza de Laboratório (Apaga o arquivo temporário)
+                if os.path.exists(nome_temp):
+                    os.remove(nome_temp)
+            return # Corta o fluxo aqui para ela não processar o comando de texto de novo e gerar duas respostas
         
         # A Invenção Assassina: O Print
         if comando == 'print' or comando == 'tela' or comando == 'ecrã':

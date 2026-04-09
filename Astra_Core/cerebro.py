@@ -52,7 +52,7 @@ def cerebro_astra(prompt, context=None):
         console.print(f"[red]Erro no cérebro:[/red] {e}")
         return "Estou com dor de cabeça (Erro de conexão).", context
     
-# Olho de Agamotto
+# Olho de Agamotto (Lê a tela do PC)
 def analisar_tela(prompt_usuario):
     falar("Analisando a tela... (Um momento)")
     
@@ -105,6 +105,48 @@ def analisar_tela(prompt_usuario):
         response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=180)
         if response_trad.status_code == 200:
             # Filtra o pensamento da tradução também!
+            return limpar_pensamento(response_trad.json()["response"])
+        else:
+            return "Consegui ver (em inglês), mas falhei ao traduzir."
+    except:
+        return f"Vi isto: {descricao_ingles} (Falha na tradução)"
+
+# Olho de Agamotto Modificado (Lê arquivos enviados no Discord)
+def analisar_imagem_direta(caminho_img, prompt_usuario):
+    try:
+        with open(caminho_img, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+    except Exception as e:
+        return f"As minhas lentes não conseguiram focar no arquivo: {e}"
+    
+    payload_visao = {
+        "model": VISION_MODEL,
+        "prompt": "Describe this image in detail. If there is text, read it.", 
+        "stream": False,
+        "images": [img_b64]
+    }
+    
+    descricao_ingles = ""
+    try:
+        response = requests.post(OLLAMA_URL, json=payload_visao, timeout=180)
+        if response.status_code == 200:
+            descricao_ingles = response.json()["response"]
+        else:
+            return f"Erro na visão: {response.status_code}"
+    except Exception as e:
+        return f"O modelo de visão demorou demais ou falhou: {e}"
+
+    prompt_traducao = f"""
+    <role>Astra</role>
+    <directive>Traduza e interprete a descrição visual abaixo baseando-se na pergunta do usuário.</directive>
+    <visual_description>{descricao_ingles}</visual_description>
+    <user_question>{prompt_usuario if prompt_usuario else "O que é isso?"}</user_question>
+    """
+    payload_traducao = {"model": MODEL_NAME, "prompt": prompt_traducao, "stream": False}
+
+    try:
+        response_trad = requests.post(OLLAMA_URL, json=payload_traducao, timeout=180)
+        if response_trad.status_code == 200:
             return limpar_pensamento(response_trad.json()["response"])
         else:
             return "Consegui ver (em inglês), mas falhei ao traduzir."
