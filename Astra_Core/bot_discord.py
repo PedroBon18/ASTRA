@@ -2,6 +2,7 @@ import discord
 import os
 import asyncio
 import pyautogui
+import PyPDF2
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -36,7 +37,6 @@ def iniciar_discord():
         comando = message.content.lower()
         console.print(f"[bold magenta][Discord]:[/bold magenta] {comando}")
 
-        # O RECEPTOR UNIVERSAL DE ANEXOS 
         if message.attachments:
             for attachment in message.attachments:
                 nome_temp = f"temp_discord_{attachment.filename}"
@@ -61,6 +61,30 @@ def iniciar_discord():
                                 await message.channel.send(resposta[i:i+2000])
                         except Exception as e:
                             await message.channel.send(f"Explosão ao ler o texto: {e}")
+
+                # O Grande Sábio na Nuvem (Leitor de PDF Remoto)
+                elif attachment.filename.endswith('.pdf'):
+                    async with message.channel.typing():
+                        try:
+                            texto_extraido = ""
+                            with open(nome_temp, 'rb') as f:
+                                leitor = PyPDF2.PdfReader(f)
+                                # Limite de 5 páginas para não fritar o cérebro
+                                limite_paginas = min(len(leitor.pages), 5)
+                                for i in range(limite_paginas): 
+                                    texto_extraido += leitor.pages[i].extract_text() + "\n"
+                            
+                            if not texto_extraido.strip():
+                                await message.channel.send("Li o PDF, mas parece vazio ou só tem imagens escaneadas sem texto!")
+                            else:
+                                prompt_arq = f"Li este PDF ({attachment.filename}). O comando do criador é: '{comando}'. Responda baseando-se APENAS no texto do documento:\n{texto_extraido}"
+                                resposta, _ = await asyncio.to_thread(cerebro_astra, prompt_arq, None)
+                                
+                                for i in range(0, len(resposta), 2000):
+                                    await message.channel.send(resposta[i:i+2000])
+                        except Exception as e:
+                            await message.channel.send(f"O Grande Sábio engasgou com esse PDF! Erro: {e}")
+
                 else:
                     await message.channel.send("Recebi o arquivo, mas não tenho ferramentas para abrir essa extensão ainda!")
                 
