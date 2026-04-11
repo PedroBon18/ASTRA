@@ -105,6 +105,48 @@ def escanear_sistema():
         return f"Varredura concluída. Mapeei {len(apps_encontrados)} aplicativos na sua Área de Trabalho."
     except Exception as e: return f"Erro ao escanear o sistema: {e}"
 
+# O RADAR DE PROCESSOS 
+def radar_de_processos():
+    console.print("[bold yellow]Infiltrando no Gestor de Tarefas do computador...[/bold yellow]")
+    
+    processos_vivos = []
+    # pega apenas o que consome mais de 0.5% de RAM
+    for proc in psutil.process_iter(['name', 'memory_percent']):
+        try:
+            mem = proc.info['memory_percent']
+            nome = proc.info['name']
+            if mem is not None and mem > 0.5:
+                processos_vivos.append(f"{nome} ({mem:.1f}% RAM)")
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess): 
+            pass
+    
+    # Limpando duplicatas
+    processos_unicos = list(set(processos_vivos))
+    
+    if not processos_unicos:
+        lista_proc = "Apenas processos fantasmas e silenciosos do Windows."
+    else:
+        # Pega os 15 maiores
+        lista_proc = "\n".join(processos_unicos[:15]) 
+    
+# A COLEIRA DE REALIDADE: Instruções muito mais rígidas para o LLM não inventar coisas
+    prompt = f"""
+    <role>Astra</role>
+    <directive>
+    Ativaste o 'Radar de Processos' e invadiste o Gestor de Tarefas do mestre.
+    Estes são os ÚNICOS programas que estão a correr na máquina agora:
+    
+    {lista_proc}
+    
+    REGRAS DE OURO: 
+    1. CITE EXPRESSAMENTE os programas reais que você encontrou nessa lista (diga a porcentagem de RAM deles).
+    2. NÃO inventes programas que não estão nesta lista! Baseia o teu julgamento ESTRITAMENTE no que lês acima.
+    </directive>
+    """
+
+    resposta, _ = cerebro_astra(prompt)
+    return resposta
+
 # Reciclando codigo de clima da Sexta-Feira 
 def obter_lat_long(cidade):
     url = f"https://api.opencagedata.com/geocode/v1/json?q={cidade}&key={OPENCAGE_KEY}&language=pt&pretty=1"

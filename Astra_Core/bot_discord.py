@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 # Importações internas do laboratório
 from Astra_Core.voz import console
 from Astra_Core.cerebro import cerebro_astra, analisar_imagem_direta
+from Astra_Core.ferramentas import radar_de_processos
 
 load_dotenv()
 
@@ -93,6 +94,15 @@ def iniciar_discord():
                     os.remove(nome_temp)
             return # Corta o fluxo aqui para ela não processar o comando de texto de novo e gerar duas respostas
         
+        gatilhos_processos = ['processos abertos', 'programas abertos', 'o que está rodando', 'gerenciador de tarefas']
+        if any(g in comando for g in gatilhos_processos):
+            async with message.channel.typing():
+                # Executa a ferramenta e manda a resposta real pro Discord
+                resposta = await asyncio.to_thread(radar_de_processos)
+                for i in range(0, len(resposta), 2000):
+                    await message.channel.send(resposta[i:i+2000])
+            return
+        
         # A Invenção Assassina: O Print
         if comando == 'print' or comando == 'tela' or comando == 'ecrã':
             async with message.channel.typing():
@@ -112,9 +122,10 @@ def iniciar_discord():
                 lista_discord = """
                 **🛠️ MANUAL DE INVENÇÕES DA ASTRA 🛠️**
                 🤖 `buscar anime [nome]`: Rastreador Otaku (MyAnimeList)
-                📚 `ler pdf [nome]`: O Grande Sábio (Lê PDFs locais)
+                📚 `ler pdf [nome]`: O Grande Sábio (Lê PDFs/TXT/Arquivos Remotos)
                 🕷️ `sentido aranha` ou `status do sistema`: Monitora CPU e RAM
-                👁️ `analise a tela` ou `veja isso`: Olho de Agamotto (Visão)
+                📋 `processos abertos` ou `programas abertos`: Radar de Processos (Gerenciador de Tarefas)
+                👁️ `analise a tela` ou `veja isso`: Olho de Agamotto (Lê Tela/Imagens)
                 📡 `escanear`: Mapeia a Área de Trabalho do mestre
                 🚀 `abrir [app]`: Inicia um programa no PC
                 📸 `print` ou `tela`: Envia um print do PC aqui pro Discord

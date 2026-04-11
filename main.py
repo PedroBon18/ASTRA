@@ -17,7 +17,8 @@ from Astra_Core.bot_discord import iniciar_discord
 from Astra_Core.ferramentas import (
     checar_lembretes, mudar_volume, mudar_brilho, tirar_print,
     escanear_sistema, obter_clima, pesquisa_inteligente,
-    estudar_pdf, rastreador_otaku, relatorio_hardware, ARQUIVO_APPS
+    estudar_pdf, rastreador_otaku, relatorio_hardware, ARQUIVO_APPS,
+    radar_de_processos
 )
 
 # LOOP PRINCIPAL HÍBRIDO
@@ -53,6 +54,7 @@ def main():
         gatilhos_busca = ['pesquise', 'pesquisar', 'busque', 'quem é', 'o que é']
         gatilhos_anime = ['procurar anime', 'buscar anime', 'rastrear anime']
         gatilhos_hardware = ['status do sistema', 'como está o hardware', 'sentido aranha']
+        gatilhos_processos = ['processos abertos', 'programas abertos', 'o que está rodando', 'gerenciador de tarefas']
 
         comando = ""
         try:
@@ -73,11 +75,15 @@ def main():
             elif 'modo voz' in comando: usar_voz = True; falar("Ativando microfone."); continue
 
             elif 'gatilhos' in comando or 'suas funções' in comando:
-                lista = "[cyan]buscar anime:[/cyan] Jikan\n[cyan]ler pdf:[/cyan] Grande Sábio\n[cyan]sentido aranha:[/cyan] Hardware\n[cyan]analise a tela:[/cyan] Visão\n[cyan]escanear:[/cyan] Radar\n[cyan]abrir [app]:[/cyan] Iniciar\n[cyan]print:[/cyan] Captura"
+                lista = "[cyan]buscar anime:[/cyan] Jikan\n[cyan]ler pdf:[/cyan] Grande Sábio\n[cyan]sentido aranha:[/cyan] Hardware\n[cyan]processos abertos:[/cyan] Radar de Processos\n[cyan]analise a tela:[/cyan] Visão\n[cyan]escanear:[/cyan] Radar\n[cyan]abrir [app]:[/cyan] Iniciar\n[cyan]print:[/cyan] Captura"
                 console.print(Panel(lista, title="[bold magenta]🛠️ MANUAL DA ASTRA 🛠️[/bold magenta]"))
                 falar("Exibindo o manual com nossos bebês."); continue
 
             elif any(g in comando for g in gatilhos_hardware): falar(relatorio_hardware()); continue
+
+            elif any(g in comando for g in gatilhos_processos):
+                falar(radar_de_processos())
+                continue
             
             elif any(g in comando for g in gatilhos_anime):
                 for g in gatilhos_anime: comando = comando.replace(g, '')
@@ -120,6 +126,7 @@ def main():
             elif any(g in comando for g in gatilhos_busca):
                 for g in gatilhos_busca: comando = comando.replace(g, '')
                 falar(pesquisa_inteligente(comando.replace('astra', '').strip())); continue
+            
 
             elif 'sair' in comando: break
 
