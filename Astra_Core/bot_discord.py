@@ -3,13 +3,19 @@ import os
 import asyncio
 import pyautogui
 import PyPDF2
+import json
 from datetime import datetime
 from dotenv import load_dotenv
+
+# AS ENGRENAGENS QUE FALTAVAM: AppOpener!
+from AppOpener import open as app_open, close as app_close
 
 # Importações internas do laboratório
 from Astra_Core.voz import console
 from Astra_Core.cerebro import cerebro_astra, analisar_imagem_direta
-from Astra_Core.ferramentas import radar_de_processos
+
+# O CABO QUE FALTAVA: ARQUIVO_APPS!
+from Astra_Core.ferramentas import radar_de_processos, ARQUIVO_APPS
 
 load_dotenv()
 
@@ -42,7 +48,7 @@ def iniciar_discord():
             for attachment in message.attachments:
                 nome_temp = f"temp_discord_{attachment.filename}"
                 await attachment.save(nome_temp)
-                
+
                 # Se for imagem, aciona o Olho de Agamotto Modificado
                 if attachment.content_type and attachment.content_type.startswith('image/'):
                     async with message.channel.typing():
@@ -128,6 +134,7 @@ def iniciar_discord():
                 👁️ `analise a tela` ou `veja isso`: Olho de Agamotto (Lê Tela/Imagens)
                 📡 `escanear`: Mapeia a Área de Trabalho do mestre
                 🚀 `abrir [app]`: Inicia um programa no PC
+                ❌ `fechar [app]`: Encerra um programa rodando no PC
                 📸 `print` ou `tela`: Envia um print do PC aqui pro Discord
                 🌦️ `clima em [cidade]`: Previsão do tempo
                 🎵 `tocar [música]`: Toca a música no YouTube
@@ -135,6 +142,44 @@ def iniciar_discord():
                 """
                 await message.channel.send(lista_discord)
             return
+
+        # Controle Remoto de Vida e Morte (Abrir/Fechar Apps)
+        if 'abrir' in comando:
+            nome_app = comando.replace('abrir', '').strip()
+            async with message.channel.typing():
+                abriu = False
+                try:
+                    # 1ª Tentativa: Tenta abrir pelos atalhos hackeados do nosso Radar
+                    with open(ARQUIVO_APPS, "r", encoding="utf-8") as f:
+                        for nome, caminho in json.load(f).items():
+                            if nome_app in nome: 
+                                os.startfile(caminho)
+                                abriu = True
+                                await message.channel.send(f"Ignição ativada! Iniciando {nome_app} no PC do mestre...")
+                                break
+                except: pass
+                
+                # 2ª Tentativa: Tenta abrir pelo AppOpener nativo do Windows
+                if not abriu:
+                    try: 
+                        await asyncio.to_thread(app_open, nome_app, match_closest=True, output=False) 
+                        await message.channel.send(f"Ignição ativada! Iniciando {nome_app} no PC do mestre...")
+                    except: 
+                        await message.channel.send("App não encontrado nas minhas lentes. Tem certeza que esse bebê existe?")
+            return
+
+        if 'fechar' in comando:
+            nome_app = comando.replace('fechar', '').strip()
+            async with message.channel.typing():
+                await message.channel.send(f"Ativando protocolo de aniquilação remota para {nome_app}...")
+                try: 
+                    # Dispara o AppOpener em segundo plano para matar o processo
+                    await asyncio.to_thread(app_close, nome_app, match_closest=True, output=False)
+                    await message.channel.send(f"BUM! 💥 {nome_app} foi explodido e removido da RAM da sua máquina!")
+                except: 
+                    await message.channel.send("As minhas lentes não acharam esse bebê rodando. Ele já deve estar morto.")
+            return
+  
 
         async with message.channel.typing():
             resposta, _ = await asyncio.to_thread(cerebro_astra, message.content, None)

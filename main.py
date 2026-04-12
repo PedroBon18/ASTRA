@@ -14,6 +14,7 @@ import pyautogui
 from Astra_Core.voz import falar, console
 from Astra_Core.cerebro import carregar_memoria, cerebro_astra, analisar_tela
 from Astra_Core.bot_discord import iniciar_discord
+from AppOpener import open as app_open, close as app_close
 from Astra_Core.ferramentas import (
     checar_lembretes, mudar_volume, mudar_brilho, tirar_print,
     escanear_sistema, obter_clima, pesquisa_inteligente,
@@ -75,7 +76,7 @@ def main():
             elif 'modo voz' in comando: usar_voz = True; falar("Ativando microfone."); continue
 
             elif 'gatilhos' in comando or 'suas funções' in comando:
-                lista = "[cyan]buscar anime:[/cyan] Jikan\n[cyan]ler pdf:[/cyan] Grande Sábio\n[cyan]sentido aranha:[/cyan] Hardware\n[cyan]processos abertos:[/cyan] Radar de Processos\n[cyan]analise a tela:[/cyan] Visão\n[cyan]escanear:[/cyan] Radar\n[cyan]abrir [app]:[/cyan] Iniciar\n[cyan]print:[/cyan] Captura"
+                lista = "[cyan]buscar anime:[/cyan] Jikan\n[cyan]ler pdf:[/cyan] Grande Sábio\n[cyan]sentido aranha:[/cyan] Hardware\n[cyan]processos abertos:[/cyan] Radar\n[cyan]analise a tela:[/cyan] Visão\n[cyan]escanear:[/cyan] Radar\n[cyan]abrir/fechar [app]:[/cyan] Controle de App\n[cyan]print:[/cyan] Captura"
                 console.print(Panel(lista, title="[bold magenta]🛠️ MANUAL DA ASTRA 🛠️[/bold magenta]"))
                 falar("Exibindo o manual com nossos bebês."); continue
 
@@ -142,6 +143,16 @@ def main():
                 if not abriu:
                     try: app_open(nome_app, match_closest=True, output=False) 
                     except: falar("App não encontrado.")
+                continue
+
+            elif 'fechar' in comando:
+                nome_app = comando.replace('fechar', '').strip()
+                falar(f"Ativando protocolo de aniquilação para {nome_app}...")
+                try: 
+                    app_close(nome_app, match_closest=True, output=False)
+                    falar(f"BUM! {nome_app} foi explodido e removido da RAM.")
+                except: 
+                    falar("As minhas lentes não acharam esse bebê rodando. Ele já deve estar morto.")
                 continue
 
             else:
