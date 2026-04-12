@@ -14,15 +14,59 @@ from ddgs import DDGS
 import PyPDF2
 import psutil
 from dotenv import load_dotenv
+import shutil
+from pathlib import Path
 
 # Importações internas do laboratório
 from Astra_Core.voz import falar, console
 from Astra_Core.cerebro import cerebro_astra
 
+
 # Reciclando API´s da Sexta-Feira
 load_dotenv()
 OPENCAGE_KEY = os.getenv("OPENCAGE_KEY")
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+# INDIVIDUALIDADE: MESTRE DE ARQUIVOS
+def listar_arquivos(diretorio="."):
+    # Retorna uma lista organizada para a Astra não se perder
+    try:
+        itens = os.listdir(diretorio)
+        return "\n".join([f"📄 {i}" if os.path.isfile(os.path.join(diretorio, i)) else f"📁 {i}" for i in itens])
+    except Exception as e:
+        return f"Erro ao vasculhar o setor: {e}"
+
+def modificar_arquivo(caminho, novo_conteudo, modo="w"):
+    # "w" para sobrescrever, "a" para adicionar ao final
+    try:
+        with open(caminho, modo, encoding="utf-8") as f:
+            f.write(novo_conteudo)
+        return f"Alteração concluída no bebê '{os.path.basename(caminho)}'!"
+    except Exception as e:
+        return f"Falha na cirurgia do arquivo: {e}"
+    
+def buscar_arquivo_local(nome_alvo):
+    # Para não fritar o PC pesquisando no C: inteiro, vamos focar no ninho do mestre!
+    pastas_alvo = [
+        winshell.desktop(),
+        winshell.my_documents(),
+        os.path.join(os.path.expanduser("~"), "Downloads")
+    ]
+    
+    nome_alvo_lower = nome_alvo.lower()
+    
+    for pasta in pastas_alvo:
+        if not os.path.exists(pasta): continue
+        
+        # O os.walk vai entrar em TODAS as subpastas!
+        for raiz, _, arquivos in os.walk(pasta):
+            for arquivo in arquivos:
+                # Se uma parte do nome bater, é jackpot!
+                if nome_alvo_lower in arquivo.lower():
+                    caminho_completo = os.path.join(raiz, arquivo)
+                    return caminho_completo
+                    
+    return None
 
 # Astra o demônio do controle
 # Em hipótese alguma altere o código do volume! É gambiarra pura, nem eu mesmo sei como funciona. O Dio Brando morreu por muito menos!

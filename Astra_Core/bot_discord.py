@@ -7,14 +7,15 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 
-# AS ENGRENAGENS QUE FALTAVAM: AppOpener!
-from AppOpener import open as app_open, close as app_close
+
 
 # Importações internas do laboratório
 from Astra_Core.voz import console
 from Astra_Core.cerebro import cerebro_astra, analisar_imagem_direta
-
-# O CABO QUE FALTAVA: ARQUIVO_APPS!
+from Astra_Core.voz import console
+from Astra_Core.cerebro import cerebro_astra, analisar_imagem_direta
+from AppOpener import open as app_open, close as app_close
+from Astra_Core.ferramentas import radar_de_processos, ARQUIVO_APPS, buscar_arquivo_local
 from Astra_Core.ferramentas import radar_de_processos, ARQUIVO_APPS
 
 load_dotenv()
@@ -99,6 +100,33 @@ def iniciar_discord():
                 if os.path.exists(nome_temp):
                     os.remove(nome_temp)
             return # Corta o fluxo aqui para ela não processar o comando de texto de novo e gerar duas respostas
+        
+        # O Cão Farejador (Busca e Envio de Arquivos)
+        gatilhos_arquivos = ['me mande o arquivo', 'enviar arquivo', 'procure o arquivo', 'mande o arquivo']
+        if any(g in comando for g in gatilhos_arquivos):
+            for g in gatilhos_arquivos:
+                if g in comando:
+                    nome_arquivo = comando.replace(g, '').strip()
+                    break
+            
+            async with message.channel.typing():
+                await message.channel.send(f"Ativando o Cão Farejador! Vasculhando a sua Área de Trabalho, Documentos e Downloads atrás de '{nome_arquivo}'...")
+                
+                # Joga a busca pesada para uma thread separada para não travar a Astra
+                caminho_encontrado = await asyncio.to_thread(buscar_arquivo_local, nome_arquivo)
+                
+                if caminho_encontrado:
+                    # Trava de Segurança: Verifica o tamanho do arquivo
+                    tamanho_mb = os.path.getsize(caminho_encontrado) / (1024 * 1024)
+                    if tamanho_mb > 25:
+                        await message.channel.send(f"Achei o bebê! Mas ele é muito gordo ({tamanho_mb:.1f} MB)! O limite do Discord é 25MB. Vou precisar de uma dieta compressora primeiro!")
+                    else:
+                        await message.channel.send(f"Alvo localizado! Extraindo e enviando o bebê: `{os.path.basename(caminho_encontrado)}` 💥", file=discord.File(caminho_encontrado))
+                else:
+                    await message.channel.send(f"Vasculhei as zonas principais, mas não achei nenhum vestígio desse bebê. Tem certeza que o nome está certo ou que ele não está escondido em outro HD?")
+            return
+        # --------------------------------------------------
+        
         
         gatilhos_processos = ['processos abertos', 'programas abertos', 'o que está rodando', 'gerenciador de tarefas']
         if any(g in comando for g in gatilhos_processos):
